@@ -1,0 +1,71 @@
+---
+title: "Basketball shot charts with R"
+output: html_document
+date: '2022-07-20'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(BasketballAnalyzeR)
+library(tidyverse)
+
+RNGkind(sample.kind = "Rounding")
+```
+
+```{r}
+
+PbP <- PbPmanipulation(PbP.BDB)
+str(PbP)
+subdata <- subset(PbP, player=="Stephen Curry")
+
+
+subdata %>% ggplot(aes(original_x, original_y)) +
+  geom_point()
+
+subdata$xx <- subdata$original_x/10
+subdata$yy <- subdata$original_y/10-41.75
+
+shotchart(data=subdata, x="xx", y="yy", scatter = T,
+          pt.col = "blue",
+          bg.col = "yellow")
+
+shotchart(data=subdata, x="xx", y="yy", scatter = T, 
+          z = 'result',
+          bg.col = "black",
+          courtline.col = "white",
+          palette = 'hot')
+
+shotchart(data=subdata, x="xx", y="yy", scatter = T, 
+          num.sect = 5,
+          type = "sectors",
+          z = 'playlength')
+
+
+shotchart(data=subdata, x="xx", y="yy", scatter = F, 
+          num.sect = 5,
+          type = "sectors",
+          z = 'playlength',
+          result = 'result')
+
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

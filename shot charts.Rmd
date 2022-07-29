@@ -6,8 +6,9 @@ date: '2022-07-20'
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(BasketballAnalyzeR)
 library(tidyverse)
+library(BasketballAnalyzeR)
+
 
 RNGkind(sample.kind = "Rounding")
 ```
@@ -49,6 +50,45 @@ shotchart(data=subdata, x="xx", y="yy", scatter = F,
 
 
 ```
+
+#interactive plot
+```{r}
+library(plotly)
+
+Pbox.sel <- subset(Pbox, MIN >= 500)
+attach(Pbox.sel)
+X <- data.frame(Player, AST/MIN, TOV/MIN, PTSpm = PTS/MIN)
+Xnomin <- data.frame(Player, AST, TOV, PTSpm = PTS)
+detach(Pbox.sel)
+
+#do this for points, not turnovers
+Xnomin <- Xnomin %>% mutate(TOprone = case_when(
+  TOV < 100 ~ "few",
+  (TOV >= 100 & TOV < 200) ~ "so-so",
+  TOV >= 200 ~ "lots")
+  )
+mypal <- colorRampPalette(c("blue", "yellow", "red"))
+
+p6 <- scatterplot(Xnomin, data.var = c("AST", "TOV"),
+                  z.var = "PTSpm", 
+                  palette = mypal,
+                  labels = Xnomin$Player)
+
+p6 + geom_smooth(aes(x = Xnomin$AST, y = Xnomin$TOV), method = lm)
+ggplotly(p6, tooltip = "text")
+
+
+p7 <- Xnomin %>% ggplot(aes(x = AST, y = TOV, color = Scorer)) +
+  geom_point() +
+  scale_color_manual(values = c("blue","yellow", "red"), aesthetics = "color", breaks= NULL)
+
+p7
+
+data <- Pbox[1:50, c("PTS","P3M","P2M","OREB","Team")]
+scatterplot(data, data.var=1:4, z.var="Team")
+
+```
+
 
 ## R Markdown
 

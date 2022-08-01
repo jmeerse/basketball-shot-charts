@@ -8,7 +8,7 @@ date: '2022-07-20'
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(BasketballAnalyzeR)
-
+library(plotly)
 
 RNGkind(sample.kind = "Rounding")
 ```
@@ -53,59 +53,68 @@ shotchart(data=subdata, x="xx", y="yy", scatter = F,
 
 #interactive plot
 ```{r}
-library(plotly)
+
 
 Pbox.sel <- subset(Pbox, MIN >= 500)
 attach(Pbox.sel)
 X <- data.frame(Player, AST/MIN, TOV/MIN, PTSpm = PTS/MIN)
-Xnomin <- data.frame(Player, AST, TOV, PTSpm = PTS)
+Xnomin <- data.frame(Player, AST, TOV, PTS)
 detach(Pbox.sel)
 
 #do this for points, not turnovers
-Xnomin <- Xnomin %>% mutate(TOprone = case_when(
-  TOV < 100 ~ "few",
-  (TOV >= 100 & TOV < 200) ~ "so-so",
-  TOV >= 200 ~ "lots")
+Xnomin <- Xnomin %>% mutate(Shooter = case_when(
+  PTS < 581 ~ "Hesitant",
+  (PTS >= 581 & PTS < 1000) ~ "2nd option",
+  PTS >= 1000 ~ "Shooter")
   )
 mypal <- colorRampPalette(c("blue", "yellow", "red"))
 
 p6 <- scatterplot(Xnomin, data.var = c("AST", "TOV"),
-                  z.var = "PTSpm", 
+                  z.var = "PTS", 
                   palette = mypal,
                   labels = Xnomin$Player)
 
+p6 
 p6 + geom_smooth(aes(x = Xnomin$AST, y = Xnomin$TOV), method = lm)
 ggplotly(p6, tooltip = "text")
 
 
-p7 <- Xnomin %>% ggplot(aes(x = AST, y = TOV, color = Scorer)) +
+p7 <- Xnomin %>% ggplot(aes(x = AST, y = TOV, color = Shooter)) +
   geom_point() +
-  scale_color_manual(values = c("blue","yellow", "red"), aesthetics = "color", breaks= NULL)
+  scale_color_manual(values = c("yellow", "red",  "green" ), aesthetics = "color")
 
 p7
+ggplotly(p7, tooltip = "all")
 
 data <- Pbox[1:50, c("PTS","P3M","P2M","OREB","Team")]
 scatterplot(data, data.var=1:4, z.var="Team")
 
 ```
 
+#looking at time to shoot vs time elapsed in game
+```{r}
+shots <- PbP %>% filter(ShotType %in% c("2P", "3P"))
 
-## R Markdown
+shots <- shots %>% filter(playlength <= 24) #somehow there are 283 plays longer than 24 seconds
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+#take out overtime games
+shots <- shots %>% filter(totalTime <= 2880)
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+shots %>% ggplot(aes(x = playlength, y = result)) + geom_boxplot()
 
-```{r cars}
-summary(cars)
+shots %>% ggplot(aes(x = totalTime, y = playlength)) + geom_point() + geom_smooth(method = "lm") + facet_wrap(~ result)
+
+shots %>% group_by(result) %>% summarise(mean_time = mean(playlength))
+
+per1 <- shots %>% filter(totalTime <= 720) %>% group_by(totalTime) %>% summarise(mean_time = mean(playlength))
+
+per1 %>% ggplot(aes(x = totalTime, y = mean_time)) + geom_point()
+
+perall <- shots %>% group_by(totalTime) %>% summarise(mean_time = mean(playlength))
+
+perall %>% ggplot(aes(x = totalTime, y = mean_time)) +
+  geom_point() + 
+  scale_y_continuous(limits = c(11, 12.6) ) +
+  geom_smooth(method = "lm")
+
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

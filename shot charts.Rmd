@@ -114,7 +114,62 @@ perall <- shots %>% group_by(totalTime) %>% summarise(mean_time = mean(playlengt
 
 perall %>% ggplot(aes(x = totalTime, y = mean_time)) +
   geom_point() + 
-  scale_y_continuous(limits = c(11, 12.6) ) +
+ geom_smooth(method = "lm")
+
+time_to_shoot.lm <- lm(perall$mean_time ~ perall$totalTime)
+
+summary(time_to_shoot.lm) #slope is .0001569, so .45 of a second longer at the end of the game than the beginning? Hmm.
+
+#shooting % by time
+shotpct <- shots %>% group_by(totalTime) %>% 
+  summarise(shotpct = sum(result == "made") / (sum(result == "made") + sum(result == "missed")),
+            n = n())
+
+
+shotpct %>% ggplot(aes(x = totalTime, 
+                       y = shotpct)) + 
+  geom_point() +
   geom_smooth(method = "lm")
+
+shotpct %>% ggplot(aes(x = shotpct)) + geom_histogram()
+
+shotpct.lm <- lm(shotpct$shotpct ~ shotpct$totalTime)
+summary(shotpct.lm)
+
+#how to see if shooter is home or away?
+for(i in 1:14040) {
+  if(shots$player[i] %in% c(shots$a1[i], shots$a2[i], shots$a3[i], shots$a4[i], shots$a5[i])) {shots$homeaway[i] <- "away"} else{shots$homeaway[i] <- "home"}
+}
+
+#need to reset score diff when there's a different game
+diff <- shots %>% group_by(game_id) %>% 
+  summarise(diff = if_else(
+    homeaway == "home",
+    (lag(home_score) - lag(away_score)),
+    (lag(away_score) - lag(home_score))
+    ),
+    totalTime = totalTime
+    )  %>%  ungroup()                            
+
+shots2 <- left_join(shots, diff, by = c("game_id", "totalTime")) 
+#somehow this added 94 rows, but whatev
+
+#make the starting NA = 0
+shots2$diff = replace_na(shots2$diff, 0)
+
+#group by point diff and see time to shoot
+shotdiff <-  shots2 %>% group_by(diff, period) %>% 
+  summarise(ttshoot = mean(playlength),
+            n = n()
+            ) %>% 
+  ungroup()
+
+shotdiff %>% filter(n > 20) %>% ggplot(aes(x = diff, 
+                        y = ttshoot, 
+                        color = as.factor(period)
+                        )
+                    ) +
+  geom_point() +
+  facet_wrap(~ period)
 
 ```

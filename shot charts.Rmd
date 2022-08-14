@@ -9,8 +9,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(BasketballAnalyzeR)
 library(plotly)
+library(jsonlite)
+library(janitor)
+library(extrafont)
+library(ggrepel)
+library(scales)
+library(teamcolors)
+library(zoo)
+library(future)
+library(lubridate)
 
 RNGkind(sample.kind = "Rounding")
+Sys.setenv("VROOM_CONNECTION_SIZE" = 2*131072)
 ```
 
 ```{r}
@@ -172,4 +182,106 @@ shotdiff %>% filter(n > 20) %>% ggplot(aes(x = diff,
   geom_point() +
   facet_wrap(~ period)
 
+```
+
+#nbastatR tutorial
+```{r}
+selectedSeasons <- c(2019:2022)
+
+gameIds_Reg <- suppressWarnings(seasons_schedule(seasons = selectedSeasons, season_types = "Regular Season") %>% select(idGame, slugMatchup))
+
+gameIds_PO <- suppressWarnings(seasons_schedule(seasons = selectedSeasons, season_types = "Playoffs") %>% select(idGame, slugMatchup))
+
+gameIds_all <- rbind(gameIds_Reg, gameIds_PO)
+
+head(gameIds_all)
+tail(gameIds_all)
+
+
+P_gamelog_reg <- suppressWarnings(game_logs(seasons = selectedSeasons, league = "NBA", result_types = "player", season_types = "Regular Season"))
+
+P_gamelog_po <- suppressWarnings(game_logs(seasons = selectedSeasons, league = "NBA", result_types = "player", season_types = "Playoffs"))
+
+P_gamelog_all <- rbind(P_gamelog_reg, P_gamelog_po)
+
+remove(P_gamelog_reg, P_gamelog_po)
+
+T_gamelog_reg <- suppressWarnings(game_logs(seasons = selectedSeasons, league = "NBA", result_types = "team", season_types = "Regular Season"))
+
+T_gamelog_po <- suppressWarnings(game_logs(seasons = selectedSeasons, league = "NBA", result_types = "team", season_types = "Playoffs"))
+
+
+T_gamelog_all <- rbind(T_gamelog_reg, T_gamelog_po)
+remove(T_gamelog_po, T_gamelog_reg)
+
+Tbox <- T_gamelog_reg %>%
+  group_by("Season"=yearSeason, "Team"=slugTeam) %>%
+  dplyr::summarise(GP=n(), MIN=sum(round(minutesTeam/5)),
+                   PTS=sum(ptsTeam),
+                   W=sum(outcomeGame=="W"), 
+                   L=sum(outcomeGame=="L"),
+                   P2M=sum(fg2mTeam), P2A=sum(fg2aTeam), 
+                   P2p=P2M/P2A,
+                   P3M=sum(fg3mTeam), P3A=sum(fg3aTeam), 
+                   P3p=P3M/P3A,
+                   FTM=sum(ftmTeam), FTA=sum(ftaTeam), 
+                   FTp=FTM/FTA,
+                   OREB=sum(orebTeam), DREB=sum(drebTeam), 
+                   AST=sum(astTeam),
+                   TOV=sum(tovTeam), STL=sum(stlTeam), 
+                   BLK=sum(blkTeam),
+                   PF=sum(pfTeam), PM=sum(plusminusTeam)) %>%
+  as.data.frame() %>% 
+  ungroup()
+
+Obox <- T_gamelog_reg %>%
+  group_by("Season"=yearSeason, "Team"=slugOpponent) %>%
+  dplyr::summarise(GP=n(), MIN=sum(round(minutesTeam/5)),
+                   PTS=sum(ptsTeam),
+                   W=sum(outcomeGame=="L"), 
+                   L=sum(outcomeGame=="W"),
+                   P2M=sum(fg2mTeam), P2A=sum(fg2aTeam), 
+                   P2p=P2M/P2A,
+                   P3M=sum(fg3mTeam), P3A=sum(fg3aTeam), 
+                   P3p=P3M/P3A,
+                   FTM=sum(ftmTeam), FTA=sum(ftaTeam), 
+                   FTp=FTM/FTA,
+                   OREB=sum(orebTeam), DREB=sum(drebTeam), 
+                   AST=sum(astTeam),
+                   TOV=sum(tovTeam), STL=sum(stlTeam), 
+                   BLK=sum(blkTeam),
+                   PF=sum(pfTeam), PM=sum(plusminusTeam)) %>%
+  as.data.frame() %>% 
+  ungroup()
+
+Pbox <- P_gamelog_reg %>%
+  group_by("Season"=yearSeason, "Team"=slugTeam, "Player"=namePlayer) %>%
+  dplyr::summarise(GP=n(), MIN=sum(minutes), PTS=sum(pts),
+                   P2M=sum(fg2m), P2A=sum(fg2a), P2p=100*P2M/P2A,
+                   P3M=sum(fg3m), P3A=sum(fg3a), P3p=100*P3M/P3A,
+                   FTM=sum(ftm), FTA=sum(fta), FTp=100*FTM/FTA,
+                   OREB=sum(oreb), DREB=sum(dreb), AST=sum(ast),
+                   TOV=sum(tov), STL=sum(stl), BLK=sum(blk),
+                   PF=sum(pf)) %>%
+  as.data.frame() %>% 
+  ungroup()
+
+View(Pbox[Pbox$Player=="LeBron James",])
+
+teamSelected <- "BOS"
+Pbox.sel <- subset(Pbox, Team==teamSelected &
+                     MIN>=1000)
+seasonSelected <- 2022
+
+barline(data=Pbox.sel[Pbox.sel$Season==seasonSelected,], 
+        id="Player",
+        bars=c("P2M","P3M","FTM"), line="PTS",
+        order.by="PTS", labels.bars=c("2PM","3PM","FTM"),
+        title=teamSelected) 
+Pbox.sel$P_Yr = paste(Pbox.sel$Player, Pbox.sel$Season, sep = ", ")
+
+Pbox.sel %>% ggplot(aes(x = AST / MIN, y = TOV / MIN)) + 
+  geom_point(color = (Pbox.sel$PTS / Pbox.sel$MIN) * 1000) +
+  geom_text(label = Pbox.sel$P_Yr, 
+            color = (Pbox.sel$PTS / Pbox.sel$MIN) * 1000) 
 ```

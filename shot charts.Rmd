@@ -280,8 +280,60 @@ barline(data=Pbox.sel[Pbox.sel$Season==seasonSelected,],
         title=teamSelected) 
 Pbox.sel$P_Yr = paste(Pbox.sel$Player, Pbox.sel$Season, sep = ", ")
 
-Pbox.sel %>% ggplot(aes(x = AST / MIN, y = TOV / MIN)) + 
-  geom_point(color = (Pbox.sel$PTS / Pbox.sel$MIN) * 1000) +
-  geom_text(label = Pbox.sel$P_Yr, 
-            color = (Pbox.sel$PTS / Pbox.sel$MIN) * 1000) 
+#plot of assists, turnovers and points per min for Boston all years
+patBos <- Pbox.sel %>% ggplot(aes(x = AST / MIN, y = TOV / MIN, color = PTS / MIN)) +
+  scale_color_gradient(low = "white",
+                       high = "dark green") +
+  geom_point() +
+  expand_limits(x = c(0, .25)) +
+  geom_text(label = Pbox.sel$P_Yr,
+            size = 3) +
+  labs(x = "Assists per Min",
+       y = "Turnovers per Min",
+       title = "Points, Assists and Turnovers - Boston Celtics",
+       subtitle = "2019 - 2022")
+
+#2pt%, 3pt%, total shots and free throw% all teams 2022
+Tbox22 <- Tbox %>% filter(Season == 2022)
+Tbox22 %>% 
+  ggplot(aes(x = P2p, y = P3p, 
+             color = FTp, 
+             size = (P2A + P3A + FTA) / GP)) +
+  geom_point() +
+  geom_vline(xintercept = mean(Tbox22$P2p)) +
+  geom_hline(yintercept = mean(Tbox$P3p)) +
+  geom_text(label = Tbox22$Team,
+            size = 3,
+            nudge_y = 0.0015) +
+  scale_color_continuous(type = "viridis") +
+  labs(title = "Shooting Stats by Team, 2022",
+       x = "2pt%",
+       y = "3pt%",
+       color = "Free Throw %",
+       size = "Shots per Game",
+       caption = "@jmeerse  data by BasketballAnalyzeR")
+ 
+ 
+ 
+#players on the last 4 teams
+fin4 <- Pbox %>% filter(Season == 2022, Team %in% c("BOS", "GSW", "MIA", "DAL"), MIN > 1500)
+
+fin4$tcol = case_when(fin4$Team == "BOS" ~ "green",
+                      fin4$Team == "GSW" ~ "gold",
+                      fin4$Team == "MIA" ~ "red",
+                      fin4$Team == "DAL" ~ "blue")
+
+fin4 %>% ggplot(aes(x = DREB / MIN, y = STL / MIN, 
+                    color = BLK / MIN, size = MIN)) + 
+  geom_point() +
+  geom_text(label = fin4$Player,
+            color = fin4$tcol,
+            nudge_y = 0.001) +
+  labs(x = "Def. Reb per Min",
+       y = "Steals per Min",
+       color = "Blocks per Min", 
+       size = "Total Minutes",
+       title = "NBA Conf Finals Players 2022",
+       caption = "@jmeerse  data: BasketballAnalyzeR")
+
 ```

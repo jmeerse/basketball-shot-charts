@@ -8,6 +8,7 @@ date: '2022-07-20'
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(BasketballAnalyzeR)
+library(nbastatR)
 library(plotly)
 library(jsonlite)
 library(janitor)
@@ -335,5 +336,45 @@ fin4 %>% ggplot(aes(x = DREB / MIN, y = STL / MIN,
        size = "Total Minutes",
        title = "NBA Conf Finals Players 2022",
        caption = "@jmeerse  data: BasketballAnalyzeR")
+
+#k-means clustering
+
+seasonSelected <- 2022
+Tbox.sel <- subset(Tbox, Season==seasonSelected)
+Obox.sel <- subset(Obox,Season==seasonSelected)
+
+FF <- fourfactors(Tbox.sel,Obox.sel)
+OD.Rtg <- FF$ORtg/FF$DRtg
+F1.r <- FF$F1.Off/FF$F1.Def
+F2.r <- FF$F2.Def/FF$F2.Off
+F3.Off <- FF$F3.Off
+F3.Def <- FF$F3.Def
+P3M.ff <- Tbox.sel$P3M
+STL.r <- Tbox.sel$STL/Obox.sel$STL
+data <- data.frame(OD.Rtg, F1.r, F2.r, F3.Off, F3.Def, P3M.ff, STL.r)
+
+RNGkind(sample.kind="Rounding")
+set.seed(29)
+kclu1 <- kclustering(data)
+plot(kclu1)
+
+#use 7 clusters (need to research why)
+set.seed(29)
+kclu2 <- kclustering(data, labels=Tbox.sel$Team, k=6)
+plot(kclu2)
+
+#now make bubble plots 
+kclu2.W <- tapply(Tbox.sel$W, kclu2$Subjects$Cluster, mean)
+
+cluster <- as.factor(kclu2$Subjects$Cluster)
+Xbubble <- data.frame(Team=Tbox.sel$Team, PTS=Tbox.sel$PTS,
+                      PTS.Opp=Obox.sel$PTS, cluster,
+                      W=Tbox.sel$W)
+
+
+labs <- c("PTS", "PTS.Opp", "cluster", "Wins")
+bubbleplot(Xbubble, id="Team", x="PTS", y="PTS.Opp",
+           col="cluster", size="W", labels=labs,
+           title=paste0("NBA Team Clusters - ",seasonSelected))#
 
 ```
